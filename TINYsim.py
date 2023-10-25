@@ -7,27 +7,48 @@ class Trace:
         self.stop = False
         self.reason = '' 
         
+        
+    # Setters
     def updateRegistry(self, index:int, val) -> None: self.registry[index] = val
     def updateMemory(self, index:int, val) -> None: self.memory[index] = val
     
     def hasStopped(self, hasStopped:bool=False) -> None: self.stop = hasStopped
     def changeReason(self, reason:str) -> None: self.reason = reason
     
+    # Swapping of Registry & Memory Arrays
     def swapPreviousRegistry(self, reg:list) -> None: self.prevRegistry = reg.copy()
     def swapPreviousMemory(self, mem:list) -> None: self.prevMemory = mem.copy()
         
     def incrementIP(self, amt:int) -> None: self.registry[0] += amt
-        
+
     def setAction(self, newAction:list) -> None:
         for i in range(len(newAction)): self.action[i] = newAction[i]
     
     @staticmethod
     def hexToStr(hexIn:int) -> str:
+        """Change from Hexadecimal to Strings
+
+		Args:
+		- hexIn (int): Hex Code
+
+		Returns:
+		- str: String version of the hex code
+		"""
+  
         if hexIn > 9: return str(hex(hexIn))[-1].upper()
         else: return str(hexIn)
         
     @staticmethod
     def strToHex(strIn:str) -> int:
+        """Change from String to Hexadecimal
+
+		Args:
+		- strIn (str): String to be changed
+
+		Returns:
+		- int: Hexadecimal Number
+		"""
+  
         if strIn == "A": return 10
         if strIn == "B": return 11
         if strIn == "C": return 12
@@ -37,8 +58,12 @@ class Trace:
         return int(strIn)
     
     @staticmethod
-    def printState(printStr:str='') -> None:
-        for i in range(len(trace.registry)): # Registry Values
+    def printState() -> None:
+        """Prints current state of the TINY Machine"""
+        printStr = ''
+        
+        # Registry Values
+        for i in range(len(trace.registry)):
             if trace.registry[i] == trace.prevRegistry[i] and count != 0:  printStr += '. '
             else: printStr +=  f'{trace.hexToStr(trace.registry[i])} '
             
@@ -61,6 +86,24 @@ class Trace:
         print(printStr)
 
 class Operators:
+	"""Different Operations used in the TINY Machine
+	- HLT: Halt (Stops execution)
+	- JMP: Jump (Jumps to designated address)
+	- JZE: Jump if Zero (Jumps to designated address if zero flag = 0)
+	- JNZ: Jump if not Zero (Jumps to designated address if zero flag != 0)
+	- LDA: Load Accumulator (Loads accumulator from designated address)
+	- STA: Store Accumulator (Store accumulator to designated address)
+	- GET: Get Accumulator (Get accumulator from input queue)
+	- PUT: Put Accumulator (Put accumulator into output queue)
+	- ROL: Rotate Left (Double and add carry-in)
+	- ROR: Rotate Right (Half and carry-out remainder)
+	- ADC: Add With Carry
+	- CCF: Clear Carry Flag
+	- SCF: Set Carry Flag
+	- DEL: Decrement Loop Index
+	- LDL: Load Loop Index (Load loop index from designated address)
+	- FLA: Flip Accumulator
+	"""
 
 	def HLT():
 		trace.setAction(['HLT', '-', '-', '-'])
