@@ -365,5 +365,6 @@ def main():
 
 	print('-------  ----------------  ---------')
 	print(trace.reason)
+	input('Enter to Exit...')
  
 main()
