@@ -1,313 +1,326 @@
 class Trace:
     def __init__(self):
+        self.inQueue, self.outQueue, self.prevRegistry, self.prevMemory = [], [], [], []
         self.memory = [0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0]
         self.registry = [0x0,0x0,0x0,0x0]
-        self.action = ["", "", "", ""]
-        self.inQueue, self.outQueue = [], []
+        self.action = ['', '', '', '']
         self.stop = False
-        self.reason = ""
+        self.reason = '' 
         
-    def takeInitialInput(self):
-        inpStr = input('Enter input queue (Format: x, x, x, x...) - ').replace(', ', "")
-        for char in inpStr: self.inQueue.append(self.strToHex(char))
+    def updateRegistry(self, index:int, val) -> None: self.registry[index] = val
+    def updateMemory(self, index:int, val) -> None: self.memory[index] = val
+    
+    def hasStopped(self, hasStopped:bool=False) -> None: self.stop = hasStopped
+    def changeReason(self, reason:str) -> None: self.reason = reason
+    
+    def swapPreviousRegistry(self, reg:list) -> None: self.prevRegistry = reg.copy()
+    def swapPreviousMemory(self, mem:list) -> None: self.prevMemory = mem.copy()
         
-        inpStr = input('Enter TINY configuration (Format: x x x x xxxxxxxxxxxxxxx) - ').replace(" ", "")
-
-        x = 0
+    def incrementIP(self, amt:int) -> None: self.registry[0] += amt
         
-        for char in inpStr:
-            if x < 20:
-                if x < 4:  self.registry[x] = self.strToHex(char)
-                else: self.memory[x-4] = self.strToHex(char)
-                
-            x += 1
-        
-        print(self.memory)
+    def setAction(self, newAction:list) -> None:
+        for i in range(len(newAction)): self.action[i] = newAction[i]
+    
+    @staticmethod
+    def hexToStr(hexIn:int) -> str:
+        if hexIn > 9: return str(hex(hexIn))[-1].upper()
+        else: return str(hexIn)
         
     @staticmethod
-    def hexToStr(hexIn) -> str:
-        if hexIn > 9: hexOut = str(hex(hexIn))[-1].upper()
-        else: hexOut = str(hexIn)
-        print(hexOut)
-        return hexOut
-
+    def strToHex(strIn:str) -> int:
+        if strIn == "A": return 10
+        if strIn == "B": return 11
+        if strIn == "C": return 12
+        if strIn == "D": return 13
+        if strIn == "E": return 14
+        if strIn == "F": return 15
+        return int(strIn)
+    
     @staticmethod
-    def strToHex(stringIn:str) -> int:
-        print(stringIn)
-        
-        if stringIn == 'A': return 10
-        elif stringIn == 'B': return 11
-        elif stringIn == 'C': return 12
-        elif stringIn == 'D': return 13
-        elif stringIn == 'E': return 14
-        elif stringIn == 'F': return 15
-        else: int(stringIn) 
-        
-        # match stringIn:
-        #     case 'A': return 10
-        #     case 'B': return 11
-        #     case 'C': return 12
-        #     case 'D': return 13
-        #     case 'E': return 14
-        #     case 'F': return 15
-        #     case _: int(stringIn)
+    def printState(printStr:str='') -> None:
+        for i in range(len(trace.registry)): # Registry Values
+            if trace.registry[i] == trace.prevRegistry[i] and count != 0:  printStr += '. '
+            else: printStr +=  f'{trace.hexToStr(trace.registry[i])} '
             
-    def printState(self) -> None:
-        printStr = ''
+        printStr += ' '
         
-        for pos in self.registry: printStr += self.hexToStr(pos) + '  '
-        for pos in self.memory: printStr += self.hexToStr(pos) + ' '
-        for pos in self.action: printStr += ' ' + pos
+        trace.swapPreviousRegistry(trace.registry)
+        
+        # Memory Values
+        for i in range(len(trace.memory)):
+            if (trace.memory[i] == trace.prevMemory[i] and count != 0): printStr += '.'
+            else: printStr += trace.hexToStr(trace.memory[i])
+            
+        trace.swapPreviousMemory(trace.memory)
+        
+        printStr += ' '
+        
+        # Action Values
+        for pos in trace.action: printStr += f' {pos}'
         
         print(printStr)
-        
-    def incrementIP(self, amt:int) -> None:
-        self.registry[0] += amt
-        if self.registry[0] >= 16: self.registry[0] -= 16
-        
-    def setAction(self, actionList:list[str]) -> None:
-        for i in range(len(actionList)): self.action[i] = actionList[i]
-        
+
 class Operators:
-	def __init__(self, trace:Trace): self.trace = trace
-    
-	def HLT(self) -> None:
-		self.setAction(["HLT","-","-","-"])
-		self.printState()
+
+	def HLT():
+		trace.setAction(['HLT', '-', '-', '-'])
+		trace.printState()
+	
+		trace.updateRegistry(2, trace.registry[2] | 0b1000)
+		trace.incrementIP(1)
+  
+		trace.setAction(['', '', '', ''])
+		trace.printState()
+
+		trace.hasStopped(True)
+		trace.changeReason('Halted Normally')
+
+	def JMP():
+		trace.setAction(["JMP", trace.hexToStr(trace.memory[trace.registry[0]+1]), "-", "-"])
+		trace.printState()
+  
+		trace.updateRegistry(0, trace.memory[trace.registry[0]+1])
 		
-		self.registry[2] = self.registry[2] or 0b1000
-		self.incrementIP(1)
+	def JZE():
+		trace.setAction(["JZE", trace.hexToStr(trace.memory[trace.registry[0]+1]), "-", "-"])
+		trace.printState()
+  
+		if trace.registry[2] & 0b10 == 0b10: trace.updateRegistry(0, trace.memory[trace.registry[0]+1])
+		else: trace.incrementIP(2)
+
+	def JNZ():
+		trace.setAction(["JNZ", trace.hexToStr(trace.memory[trace.registry[0]+1]), "-", "-"])
+		trace.printState()
+  
+		if trace.registry[2] & 0b10 != 0b10: trace.updateRegistry(0, trace.memory[trace.registry[0]+1])
+		else: trace.incrementIP(2)
 		
-		self.setAction(["","","",""])
-		self.printState()
-		
-		global stop
-		stop = True
-		global reason
-		reason = "Halted Normally"
+	def LDA():
+		trace.setAction(["LDA", trace.hexToStr(trace.memory[trace.registry[0]+1]), "-", "-"])
+		trace.printState()
 
-	def JMP(self) -> None:
-		self.setAction(["JMP", self.hexToString(self.memory[self.registry[0]+1]), "-", "-"])
-		self.printState()
+		trace.updateRegistry(3, trace.memory[trace.memory[trace.registry[0]+1]])
   
-		self.registry[0] = self.memory[self.registry[0]+1]
+		if trace.registry[3] == 0: trace.updateRegistry(2, trace.registry[2] | 0b10)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
 
-	def JZE(self) -> None:
-		self.setAction(["JZE", self.hexToString(self.memory[self.registry[0]+1]), "-", "-"])
-		self.printState()
+		trace.incrementIP(2)
+
+	def STA():
+		trace.setAction(["STA", trace.hexToStr(trace.memory[trace.registry[0]+1]), "-", "-"])
+		trace.printState()
   
-		if self.registry[2] & 0b10 == 0b10: self.registry[0] = self.memory[self.registry[0]+1]
-		else: self.incrementIP(2)
+		trace.updateMemory(trace.memory[trace.registry[0]+1], trace.registry[3])
+		trace.incrementIP(2)
 
-	def JNZ(self) -> None:
-		self.setAction(["JNZ", self.hexToString(self.memory[self.registry[0]+1]), "-", "-"])
-		self.printState()
-  
-		if self.registry[2] & 0b10 != 0b10: self.registry[0] = self.memory[self.registry[0]+1]
-		else: self.incrementIP(2)
-
-	def LDA(self) -> None:
-		self.setAction(["LDA", self.hexToString(self.memory[self.registry[0]+1]),"-","-"])
-		self.printState()
-	
-		self.registry[3] = self.memory[self.memory[self.registry[0]+1]]
-
-		if self.registry[3] == 0: self.registry[2] = self.registry[2] or 0b10
-		else: self.registry[2] = self.registry[2] & 0b1101
-	
-		self.incrementIP(2)
-
-	def STA(self) -> None:
-		self.setAction(["STA", self.hexToString(self.memory[self.registry[0]+1]), "-", "-"])
-		self.printState()
-	
-		self.memory[self.memory[self.registry[0]+1]] = self.registry[3]
-		self.incrementIP(2)
-
-	def GET(self) -> None:
-		if len(self.inQueue) != 0:
-			self.setAction(["GET", "-", self.hexToString(self.inQueue[0]), "-"])
-			self.printState()
-	
-			self.registry[3] = self.inQueue[0]
-			del self.inQueue[0]
-	
-			if self.registry[3] == 0: self.registry[2] = self.registry[2] or 0b10
-			else: self.registry[2] = self.registry[2] and 0b1101
-		else:
-			self.setAction(["GET","-","-","-"])
-			self.printState()
-	
-			self.stop = True
-			self.reason = "Starved For Input"
-		self.incrementIP(1)
-
-	def PUT(self) -> None:
-		self.setAction(["PUT", "-", "-", self.hexToString(self.registry[3])])
-		self.printState()
-	
-		self.outQueue.append(self.registry[3])
-		self.incrementIP(1)
-
-	def ROL(self) -> None:
-		self.setAction(["ROL", "-", "-", "-"])
-		self.printState()
-	
-		x = self.registry[3] and 0b1000
-		self.registry[3] = self.registry[3] * 2 + (self.registry[2] and 0b1)
-	
-		if self.registry[3] >= 16:
-			self.registry[3] -= 16
-			self.registry[2] = self.registry[2] or 0b1
-	
-		else: self.registry[2] = self.registry[2] and 0b1110
-	
-		if self.registry[3] and 0b1000 != x: self.registry[2] = self.registry[2] or 0b100
-		else: self.registry[2] = self.registry[2] and 0b011
-	
-		if self.registry[3] == 0: self.registry[2] = self.registry[2] or 0b10
-		else: self.registry[2] = self.registry[2] and 0b1101
-	
-		self.incrementIP(1)
-
-	def ROR(self) -> None:
-		self.setAction(["ROR", "-", "-", "-"])
-		self.printState()
-  
-		x = self.registry[3] and 0b1000
-  
-		if self.registry[3] % 2 == 0:
-			self.registry[3] /= 2
-			self.registry[2] = self.registry[2] and 0b1110
-		else:
-			self.registry[3] = (self.registry[3] - 1) / 2
-			self.registry[2] = self.registry[2] or 0b1
-		if self.registry[3] & 0b1000 != x:
-			self.registry[2] = self.registry[2] or 0b100
-		else:
-			self.registry[2] = self.registry[2] and 0b011
-		if self.registry[3] == 0:
-			self.registry[2] = self.registry[2] or 0b10
-		else:
-			self.registry[2] = self.registry[2] and 0b1101
+	def GET():
+		if len(trace.inQueue) != 0:
+			trace.setAction(["GET", "-", trace.hexToStr(trace.inQueue[0]), "-"])
+			trace.printState()
    
-		self.incrementIP(1)
+			trace.updateRegistry(3, trace.inQueue[0])
+			del trace.inQueue[0]
+   
+			if trace.registry[3] == 0: trace.updateRegistry(2,  trace.registry[2] | 0b10)
+			else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
 
-	def ADC(self) -> None:
-		self.setAction(["ADC", self.hexToString(self.memory[self.registry[0]+1]), "-", "-"])
-		self.printState()
+		else:
+			trace.setAction(["GET","-","-","-"])
+			trace.printState()
+
+			trace.hasStopped(True)
+			trace.changeReason('Starved For Input')
+   
+		trace.incrementIP(1)
+
+	def PUT():
+		trace.setAction(["PUT", "-", "-", trace.hexToStr(trace.registry[3])])
+		trace.printState()
+  
+		trace.outQueue.append(trace.registry[3])
+		trace.incrementIP(1)
+
+	def ROL():
+		trace.setAction(["ROL", "-", "-", "-"])
+		trace.printState()
+  
+		x = trace.registry[3] & 0b1000
+		trace.updateRegistry(3, trace.registry[3]*2 + (trace.registry[2] & 0b1))
+		if trace.registry[3] >= 16:
+			trace.registry[3] -= 16
+			trace.updateRegistry(2, trace.registry[2] | 0b1)
+   
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1110)
+  
+		if trace.registry[3] & 0b1000 != x: trace.updateRegistry(2, trace.registry[2] | 0b100)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b011)
+  
+		if trace.registry[3] == 0: trace.updateRegistry(2, trace.registry[2] | 0b10)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
+  
+		trace.incrementIP(1)
+
+	def ROR():
+		trace.setAction(["ROR", "-", "-", "-"])
+		trace.printState()
+
+		x = trace.registry[3] & 0b1000
+  
+		if trace.registry[3] % 2 == 0:
+			trace.registry[3] /= 2
+			trace.registry[2] = trace.registry[2] & 0b1110
+
+		else:
+			trace.updateRegistry(3, (trace.registry[3]-1) / 2)
+			trace.updateRegistry(2, trace.registry[2] | 0b1)
+   
+		if trace.registry[3] & 0b1000 != x: trace.updateRegistry(2, trace.registry[2] | 0b100)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b011)
+  
+		if trace.registry[3] == 0: trace.updateRegistry(2, trace.registry[2] | 0b10)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
+
+		trace.incrementIP(1)
+
+	def ADC():
+		trace.setAction(["ADC", trace.hexToStr(trace.memory[trace.registry[0]+1]), "-", "-"])
+		trace.printState()
+  
 		carry = 0
   
-		if (self.registry[3] and 0b1) + (self.memory[self.memory[self.registry[0]+1]] and 0b1) + (self.registry[2] and 0b1) >= 2: carry = 1
+		if (trace.registry[3] & 0b1) + (trace.memory[trace.memory[trace.registry[0]+1]] & 0b1) + (trace.registry[2] & 0b1) >= 2: carry = 1
 		else: carry = 0
-   
-		if (self.registry[3] & 0b10) / 2 + (self.memory[self.memory[self.registry[0]+1]] and 0b10) / 2 + carry >= 2: carry = 1
+		
+		if (trace.registry[3] & 0b10)/2 + (trace.memory[trace.memory[trace.registry[0]+1]] & 0b10)/2 + carry >= 2: carry = 1
 		else: carry = 0
-  
-		if (self.registry[3] & 0b100) / 4 + (self.memory[self.memory[self.registry[0]+1]] and 0b100) / 4 + carry >= 2:carry = 1
+		
+		if (trace.registry[3] & 0b100)/4 + (trace.memory[trace.memory[trace.registry[0]+1]] & 0b100)/4 + carry >= 2: carry = 1
 		else: carry = 0
-  
-		if (self.registry[3] & 0b1000) / 8 + (self.memory[self.memory[self.registry[0]+1]] and 0b1000) / 8 + carry >= 2: carry2 = 1
+		
+		if (trace.registry[3] & 0b1000)/8 + (trace.memory[trace.memory[trace.registry[0]+1]] & 0b1000)/8 + carry >= 2: carry2 = 1
 		else: carry2 = 0
-  
-		if carry2 == carry: self.registry[2] = self.registry[2] and 0b1011
-		else: self.registry[2] = self.registry[2] or 0b0100
-  
-		self.registry[3] = self.registry[3] + (self.registry[2] and 0b1) + self.memory[self.memory[self.registry[0]+1]]
-  
-		if self.registry[3] >= 16:
-			self.registry[3] -= 16
-			self.registry[2] = self.registry[2] or 0b1
-   
-		else: self.registry[2] = self.registry[2] and 0b1110
-  
-		if self.registry[3] == 0: self.registry[2] = self.registry[2] or 0b10
-		else: self.registry[2] = self.registry[2] and 0b1101
+
+		if carry2 == carry: trace.updateRegistry(2, trace.registry[2] & 0b1011)
+		else: trace.updateRegistry(2, trace.registry[2] | 0b0100)
 		
-		self.incrementIP(2)
-
-	def CCF(self) -> None:
-		self.setAction(["CCF", "-", "-", "-"])
-		self.printState()
+		trace.updateRegistry(3, trace.registry[3] + (trace.registry[2] & 0b1) + trace.memory[trace.memory[trace.registry[0]+1]])
 		
-		self.registry[2] = self.registry[2] and 0b1110
-		self.incrementIP(1)
-
-	def SCF(self) -> None:
-		self.setAction(["SCF","-","-","-"])
-		self.printState()
-  
-		self.registry[2] = self.registry[2] or 0b0001
-		self.incrementIP(1)
-
-	def DEL(self) -> None:
-		self.setAction(["DEL", "-", "-", "-"])
-		self.printState()
-  
-		self.registry[1] -= 1
-		if self.registry[1] < 0: self.registry[1] += 16
-		if self.registry[1] == 0: self.registry[2] = self.registry[2] or 0b0010
-  
-		else: self.registry[2] = self.registry[2] & 0b1101
-  
-		self.incrementIP(1)
-
-	def LDL(self) -> None:
-		self.setAction(["LDL", self.hexToString(self.memory[self.registry[0]+1]), "-", "-"])
-		self.printState()
-  
-		self.registry[1] = self.memory[self.memory[self.registry[0]+1]]
-		if self.registry[1] == 0: self.registry[2] = self.registry[2] or 0b0010
-		else: self.registry[2] = self.registry[2] and 0b1101
-
-		self.incrementIP(2)
-
-	def FLA(self) -> None:
-		self.setAction(["FLA", "-", "-", "-"])
-		self.printState()
+		if trace.registry[3] >=16:
+			trace.registry[3] -= 16
+			trace.updateRegistry(2, trace.registry[2] | 0b1)
 	
-		self.registry[3] = 15 - self.registry[3]
-		if self.registry[3] < 0: self.registry[3] += 16
-		if self.registry[3] == 0: self.registry[2] = self.registry[2] or 0b0010
-		else: self.registry[2] = self.registry[2] and 0b1101
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1110)
+		
+		if trace.registry[3] == 0: trace.updateRegistry(2, trace.registry[2] | 0b10)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
+		
+		trace.incrementIP(2)
 
-		self.incrementIP(1)
+	def CCF():
+		trace.setAction(["CCF", "-", "-", "-"])
+		trace.printState()
 	
+		trace.updateRegistry(2, trace.registry[2] & 0b1110)
+		trace.incrementIP(1)
+
+	def SCF():
+		trace.setAction(["SCF", "-", "-", "-"])
+		trace.printState()
+  
+		trace.updateRegistry(2, trace.registry[2] | 0b0001)
+		trace.incrementIP(1)
+
+	def DEL():
+		trace.setAction(["DEL", "-", "-", "-"])
+		trace.printState()
+  
+		trace.registry[1] -= 1
+		if trace.registry[1] < 0: trace.registry[1] += 16
+
+		if trace.registry[1] == 0: trace.updateRegistry(2, trace.registry[2] | 0b0010)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
+  
+		trace.incrementIP(1)
+
+	def LDL():
+		trace.setAction(["LDL", trace.hexToStr(trace.memory[trace.registry[0]+1]), "-", "-"])
+		trace.printState()
+  
+		trace.updateRegistry(1, trace.memory[trace.memory[trace.registry[0]+1]])
+  
+		if trace.registry[1] == 0: trace.updateRegistry(2, trace.registry[2] | 0b0010)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
+  
+		trace.incrementIP(2)
+
+	def FLA():
+		trace.setAction(["FLA", "-", "-", "-"])
+		trace.printState()
+  
+		trace.updateRegistry(3, 15 - trace.registry[3])
+		if trace.registry[3] < 0: trace.registry[3] += 16
+
+		if trace.registry[3] == 0: trace.updateRegistry(2, trace.registry[2] | 0b0010)
+		else: trace.updateRegistry(2, trace.registry[2] & 0b1101)
+  
+		trace.incrementIP(1)
+
+trace = Trace()
+
 def main():
-	trace = Trace()
-	trace.takeInitialInput()
-	newOp = Operators(trace)
+	global count
 
-	count = 0
+	inputString = input('Enter input queue (Format: x, x, x, x...): ').replace(', ','')
+	for char in inputString: trace.inQueue.append(trace.strToHex(char))
+
+	inputString = input('Enter TINY configuration (Format: x x x x  xxxxxxxxxxxxxxx): ').replace(' ', '')
+
+	# Trace Header
+	print('I L F A  Memory----------  Action---')
+	print('P I R C  0123456789ABCDEF  OPR & ? !')
+	print('-------  ----------------  ---------')
+
+	x = 0
+
+	for char in inputString:
+		if x < 20:
+			if x < 4: trace.registry[x] = trace.strToHex(char)
+			else: trace.memory[x-4] = trace.strToHex(char)
+		x += 1
+
+	# Default Registry & Memory Values to Check Against
+	trace.swapPreviousRegistry(trace.registry)
+	trace.swapPreviousMemory(trace.memory)
+
+	count = 0 # Iterations Through Trace
 
 	while not trace.stop:
-		if count >= 500: 
+		if count >= 500:
 			trace.stop = True
-			trace.reason = 'Loops Henceforth'
-
-		print(trace.memory)
+			trace.reason = "Loops Henceforth"
 
 		match trace.memory[trace.registry[0]]:
-			case 0: newOp.HLT()
-			case 1: newOp.JMP()
-			case 2: newOp.JZE()
-			case 3: newOp.JNZ()
-			case 4: newOp.LDA()
-			case 5: newOp.STA()
-			case 6: newOp.GET()
-			case 7: newOp.PUT()
-			case 8: newOp.ROL()
-			case 9: newOp.ROR()
-			case 10: newOp.ADC()
-			case 11: newOp.CCF()
-			case 12: newOp.SCF()
-			case 13: newOp.DEL()
-			case 14: newOp.LDL()
-			case 15: newOp.FLA()
-			case _: print('Error')
+			case 0: Operators.HLT()
+			case 1: Operators.JMP()
+			case 2: Operators.JZE()
+			case 3: Operators.JNZ()
+			case 4: Operators.LDA()
+			case 5: Operators.STA()
+			case 6: Operators.GET()
+			case 7: Operators.PUT()
+			case 8: Operators.ROL()
+			case 9: Operators.ROR()
+			case 10: Operators.ADC()
+			case 11: Operators.CCF()
+			case 12: Operators.SCF()
+			case 13: Operators.DEL()
+			case 14: Operators.LDL()
+			case 15: Operators.FLA()
+			case _: print('Error: Exceeded TINY Operator List')
 
 		count += 1
-  
-	print(trace.reason)
 
+	print('-------  ----------------  ---------')
+	print(trace.reason)
+ 
 main()
