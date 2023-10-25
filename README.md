@@ -44,4 +44,4 @@ Halted Normally
 ## Notes
 
 + This script halts after 500 operations, and assumes that the TINY program loops indefinitely
-+ This can be changed by editing the main loop of the program, line 268. Set count to a desired value.
++ This can be changed by editing the main loop of the program, line 298. Set count to a desired value.
