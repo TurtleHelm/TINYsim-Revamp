@@ -366,8 +366,8 @@ def main(tinyTrace:Trace) -> None:
 		count += 1
 
 	print('-------  ----------------  ---------')
-	print(f'         {tinyTrace.reason}                  ')
+	print(f'        {tinyTrace.reason}         ')
 	print('-------  ----------------  ---------')
 	input('Hit Enter to Finish...')
- 
+
 main(trace)

@@ -45,3 +45,8 @@ Halted Normally
 
 + This script halts after 500 operations, and assumes that the TINY program loops indefinitely
 + This can be changed by editing the main loop of the program, line 298. Set count to a desired value.
+
+## Known Bugs
+
+### Index out of Range error once reaching end of instruction pointer before a loop
+
