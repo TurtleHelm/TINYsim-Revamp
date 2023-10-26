@@ -48,5 +48,4 @@ Halted Normally
 
 ## Known Bugs
 
-### Index out of Range error once reaching end of instruction pointer before a loop
-
+### Currently No Known Bugs
