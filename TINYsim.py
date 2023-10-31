@@ -341,8 +341,8 @@ def main(tinyTrace:Trace) -> None:
 	# Apply Operators to Traces
 	while not tinyTrace.stop:
 		if count >= 500:
-			stop = True
-			reason = "Loops Henceforth"
+			trace.stop = True
+			trace.reason = "Loops Henceforth"
 
 		match tinyTrace.memory[tinyTrace.registry[0]]:
 			case 0: ops.HLT()
