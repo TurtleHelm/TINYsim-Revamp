@@ -80,228 +80,229 @@ class Trace:
 		print(printStr)
 
 class Operators:
-    """Different Operations used in the TINY Machine
-    - HLT: Halt (Stops execution)
-    - JMP: Jump (Jumps to designated address)
-    - JZE: Jump if Zero (Jumps to designated address if zero flag = 0)
-    - JNZ: Jump if not Zero (Jumps to designated address if zero flag != 0)
-    - LDA: Load Accumulator (Loads accumulator from designated address)
-    - STA: Store Accumulator (Store accumulator to designated address)
-    - GET: Get Accumulator (Get accumulator from input queue)
-    - PUT: Put Accumulator (Put accumulator into output queue)
-    - ROL: Rotate Left (Double and add carry-in)
-    - ROR: Rotate Right (Half and carry-out remainder)
-    - ADC: Add With Carry
-    - CCF: Clear Carry Flag
-    - SCF: Set Carry Flag
-    - DEL: Decrement Loop Index
-    - LDL: Load Loop Index (Load loop index from designated address)
-    - FLA: Flip Accumulator
-    """
-    
-    def __init__(self, trace:Trace): self.trace = trace
-    
-    def HLT(self) -> None:
-        self.trace.setAction(['HLT', '-', '-', '-'])
-        self.trace.printState()
-        
-        self.trace.registry[2] = self.trace.registry[2] | 0b1000
-        self.trace.incrementIP(1)
-        
-        self.trace.setAction(["","","",""])
-        self.trace.printState()
-        
-        self.trace.stop = True
-        self.trace.reason = "Halted Normally"
-        
-    def JMP(self) -> None:
-        self.trace.setAction(['JMP', self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]), '-', '-'])
-        self.trace.printState()
-        
-        self.trace.registry[0] = self.trace.memory[self.trace.registry[0]+1]
-            
-    def JZE(self) -> None:
-        self.trace.setAction(["JZE", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
-        self.trace.printState()
-        
-        if self.trace.registry[2] & 0b10 == 0b10: self.trace.registry[0] = self.trace.memory[self.trace.registry[0]+1]
-        else: self.trace.incrementIP(2)
-        
-    def JNZ(self) -> None:
-        self.trace.setAction(["JNZ", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
-        self.trace.printState()
-        
-        if self.trace.registry[2] & 0b10 != 0b10: self.trace.registry[0] = self.trace.memory[self.trace.registry[0]+1]
-        else: self.trace.incrementIP(2)
-        
-    def LDA(self) -> None:
-        self.trace.setAction(["LDA", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
-        self.trace.printState()
-        
-        self.trace.registry[3] = self.trace.memory[self.trace.memory[self.trace.registry[0]+1]]
-        
-        if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-        
-        self.trace.incrementIP(2)
-        
-    def STA(self) -> None:
-        self.trace.setAction(["STA", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
-        self.trace.printState()
-        
-        self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] = self.trace.registry[3]
-        self.trace.incrementIP(2)
-        
-    def GET(self) -> None:
-        if len(self.trace.inQueue) != 0:
-            self.trace.setAction(["GET","-", self.trace.hexToStr(self.trace.inQueue[0]),"-"])
-            self.trace.printState()
-            
-            self.trace.registry[3] = self.trace.inQueue[0]
-            
-            del self.trace.inQueue[0]
-            
-            if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
-            else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-            
-        else:
-            self.trace.setAction(["GET","-","-","-"])
-            self.trace.printState()
-            
-            self.trace.stop = True
-            self.trace.reason = "Starved For Input"
-            
-        self.trace.incrementIP(1)
-        
-    def PUT(self) -> None:
-        self.trace.setAction(["PUT","-","-",self.trace.hexToStr(self.trace.registry[3])])
-        self.trace.printState()
-        
-        self.trace.outQueue.append(self.trace.registry[3])
-        self.trace.incrementIP(1)
-        
-    def ROL(self) -> None:
-        self.trace.setAction(["ROL","-","-","-"])
-        self.trace.printState()
-        
-        self.trace.registry[3] = self.trace.registry[3] * 2 + (self.trace.registry[2] & 0b1)
-        
-        if self.trace.registry[3] >= 16:
-            self.trace.registry[3] -= 16
-            self.trace.registry[2] = self.trace.registry[2] | 0b1
-            
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1110
-        
-        if self.trace.registry[3] & 0b1000 != (self.trace.registry[3] & 0b1000):
-            self.trace.registry[2] = self.trace.registry[2] | 0b100
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b011
-        
-        if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-        
-        self.trace.incrementIP(1)
-        
-    def ROR(self) -> None:
-        self.trace.setAction(["ROR","-","-","-"])
-        self.trace.printState()
-        
-        x = self.trace.registry[3] & 0b1000
-        if self.trace.registry[3] % 2 == 0:
-            self.trace.registry[3]/=2
-            self.trace.registry[2] = self.trace.registry[2] & 0b1110
-        else:
-            self.trace.registry[3] = (self.trace.registry[3]-1) / 2
-            self.trace.registry[2] = self.trace.registry[2] | 0b1
-            
-        if self.trace.registry[3] & 0b1000 != x: self.trace.registry[2] = self.trace.registry[2] | 0b100
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b011
-            
-        if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-        
-        self.trace.incrementIP(1)
-        
-    def ADC(self) -> None:
-        self.trace.setAction(["ADC", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
-        self.trace.printState()
-        carry = 0
-        
-        if(self.trace.registry[3] & 0b1) + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b1) + (self.trace.registry[2] & 0b1) >= 2: carry = 1
-        else: carry = 0
-        
-        if(self.trace.registry[3] & 0b10)/2 + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b10)/2 + carry >= 2: carry = 1
-        else: carry = 0
-        
-        if(self.trace.registry[3] & 0b100)/4 + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b100)/4 + carry >= 2: carry = 1
-        else: carry = 0
-        
-        if(self.trace.registry[3] & 0b1000)/8 + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b1000)/8 + carry >= 2: carry2 = 1
-        else: carry2 = 0
-        
-        if carry2 == carry: self.trace.registry[2] = self.trace.registry[2] & 0b1011
-        else: self.trace.registry[2] = self.trace.registry[2] | 0b0100
-        
-        self.trace.registry[3] = self.trace.registry[3] + (self.trace.registry[2] & 0b1) + self.trace.memory[self.trace.memory[self.trace.registry[0]+1]]
-        
-        if self.trace.registry[3] >=16:
-            self.trace.registry[3] -= 16
-            self.trace.registry[2] = self.trace.registry[2] | 0b1
-        
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1110
-        
-        if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-        
-        self.trace.incrementIP(2)
-        
-    def CCF(self) -> None:
-        self.trace.setAction(["CCF","-","-","-"])
-        self.trace.printState()
-        
-        self.trace.registry[2] = self.trace.registry[2] & 0b1110
-        self.trace.incrementIP(1)
-        
-    def SCF(self) -> None:
-        self.trace.setAction(["SCF","-","-","-"])
-        self.trace.printState()
-        
-        self.trace.registry[2] = self.trace.registry[2] | 0b0001
-        self.trace.incrementIP(1)
-        
-    def DEL(self) -> None:
-        self.trace.setAction(["DEL","-","-","-"])
-        self.trace.printState()
-        
-        self.trace.registry[1]-=1
-        
-        if self.trace.registry[1]<0: self.trace.registry[1]+=16
-        
-        if self.trace.registry[1] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b0010
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-        
-        self.trace.incrementIP(1)
-        
-    def LDL(self) -> None:
-        self.trace.setAction(["LDL", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
-        self.trace.printState()
-        
-        self.trace.registry[1] = self.trace.memory[self.trace.memory[self.trace.registry[0]+1]]
-        if self.trace.registry[1] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b0010
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-        
-        self.trace.incrementIP(2)
-        
-    def FLA(self) -> None:
-        self.trace.setAction(["FLA","-","-","-"])
-        self.trace.printState()
-        
-        self.trace.registry[3] = 15 - self.trace.registry[3]
-        
-        if self.trace.registry[3] < 0: self.trace.registry[3]+=1
-        if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b0010
-        else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
-        
-        self.trace.incrementIP(1)
+	"""Different Operations used in the TINY Machine
+	- HLT: Halt (Stops execution)
+	- JMP: Jump (Jumps to designated address)
+	- JZE: Jump if Zero (Jumps to designated address if zero flag = 0)
+	- JNZ: Jump if not Zero (Jumps to designated address if zero flag != 0)
+	- LDA: Load Accumulator (Loads accumulator from designated address)
+	- STA: Store Accumulator (Store accumulator to designated address)
+	- GET: Get Accumulator (Get accumulator from input queue)
+	- PUT: Put Accumulator (Put accumulator into output queue)
+	- ROL: Rotate Left (Double and add carry-in)
+	- ROR: Rotate Right (Half and carry-out remainder)
+	- ADC: Add With Carry
+	- CCF: Clear Carry Flag
+	- SCF: Set Carry Flag
+	- DEL: Decrement Loop Index
+	- LDL: Load Loop Index (Load loop index from designated address)
+	- FLA: Flip Accumulator
+	"""
+	
+	def __init__(self, trace:Trace): self.trace = trace
+	
+	def HLT(self) -> None:
+		self.trace.setAction(['HLT', '-', '-', '-'])
+		self.trace.printState()
+		
+		self.trace.registry[2] = self.trace.registry[2] | 0b1000
+		self.trace.incrementIP(1)
+		
+		self.trace.setAction(["","","",""])
+		self.trace.printState()
+		
+		self.trace.stop = True
+		self.trace.reason = "Halted Normally"
+		return
+		
+	def JMP(self) -> None:
+		self.trace.setAction(['JMP', self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]), '-', '-'])
+		self.trace.printState()
+		
+		self.trace.registry[0] = self.trace.memory[self.trace.registry[0]+1]
+			
+	def JZE(self) -> None:
+		self.trace.setAction(["JZE", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
+		self.trace.printState()
+		
+		if self.trace.registry[2] & 0b10 == 0b10: self.trace.registry[0] = self.trace.memory[self.trace.registry[0]+1]
+		else: self.trace.incrementIP(2)
+		
+	def JNZ(self) -> None:
+		self.trace.setAction(["JNZ", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
+		self.trace.printState()
+		
+		if self.trace.registry[2] & 0b10 != 0b10: self.trace.registry[0] = self.trace.memory[self.trace.registry[0]+1]
+		else: self.trace.incrementIP(2)
+		
+	def LDA(self) -> None:
+		self.trace.setAction(["LDA", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
+		self.trace.printState()
+		
+		self.trace.registry[3] = self.trace.memory[self.trace.memory[self.trace.registry[0]+1]]
+		
+		if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+		
+		self.trace.incrementIP(2)
+		
+	def STA(self) -> None:
+		self.trace.setAction(["STA", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
+		self.trace.printState()
+		
+		self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] = self.trace.registry[3]
+		self.trace.incrementIP(2)
+		
+	def GET(self) -> None:
+		if len(self.trace.inQueue) != 0:
+			self.trace.setAction(["GET","-", self.trace.hexToStr(self.trace.inQueue[0]),"-"])
+			self.trace.printState()
+			
+			self.trace.registry[3] = self.trace.inQueue[0]
+			
+			del self.trace.inQueue[0]
+			
+			if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
+			else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+			
+		else:
+			self.trace.setAction(["GET","-","-","-"])
+			self.trace.printState()
+			
+			self.trace.stop = True
+			self.trace.reason = "Starved For Input"
+			
+		self.trace.incrementIP(1)
+		
+	def PUT(self) -> None:
+		self.trace.setAction(["PUT","-","-",self.trace.hexToStr(self.trace.registry[3])])
+		self.trace.printState()
+		
+		self.trace.outQueue.append(self.trace.registry[3])
+		self.trace.incrementIP(1)
+		
+	def ROL(self) -> None:
+		self.trace.setAction(["ROL","-","-","-"])
+		self.trace.printState()
+		
+		self.trace.registry[3] = self.trace.registry[3] * 2 + (self.trace.registry[2] & 0b1)
+		
+		if self.trace.registry[3] >= 16:
+			self.trace.registry[3] -= 16
+			self.trace.registry[2] = self.trace.registry[2] | 0b1
+			
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1110
+		
+		if self.trace.registry[3] & 0b1000 != (self.trace.registry[3] & 0b1000):
+			self.trace.registry[2] = self.trace.registry[2] | 0b100
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b011
+		
+		if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+		
+		self.trace.incrementIP(1)
+		
+	def ROR(self) -> None:
+		self.trace.setAction(["ROR","-","-","-"])
+		self.trace.printState()
+		
+		x = self.trace.registry[3] & 0b1000
+		if self.trace.registry[3] % 2 == 0:
+			self.trace.registry[3]/=2
+			self.trace.registry[2] = self.trace.registry[2] & 0b1110
+		else:
+			self.trace.registry[3] = (self.trace.registry[3]-1) / 2
+			self.trace.registry[2] = self.trace.registry[2] | 0b1
+			
+		if self.trace.registry[3] & 0b1000 != x: self.trace.registry[2] = self.trace.registry[2] | 0b100
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b011
+			
+		if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+		
+		self.trace.incrementIP(1)
+		
+	def ADC(self) -> None:
+		self.trace.setAction(["ADC", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
+		self.trace.printState()
+		carry = 0
+		
+		if(self.trace.registry[3] & 0b1) + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b1) + (self.trace.registry[2] & 0b1) >= 2: carry = 1
+		else: carry = 0
+		
+		if(self.trace.registry[3] & 0b10)/2 + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b10)/2 + carry >= 2: carry = 1
+		else: carry = 0
+		
+		if(self.trace.registry[3] & 0b100)/4 + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b100)/4 + carry >= 2: carry = 1
+		else: carry = 0
+		
+		if(self.trace.registry[3] & 0b1000)/8 + (self.trace.memory[self.trace.memory[self.trace.registry[0]+1]] & 0b1000)/8 + carry >= 2: carry2 = 1
+		else: carry2 = 0
+		
+		if carry2 == carry: self.trace.registry[2] = self.trace.registry[2] & 0b1011
+		else: self.trace.registry[2] = self.trace.registry[2] | 0b0100
+		
+		self.trace.registry[3] = self.trace.registry[3] + (self.trace.registry[2] & 0b1) + self.trace.memory[self.trace.memory[self.trace.registry[0]+1]]
+		
+		if self.trace.registry[3] >=16:
+			self.trace.registry[3] -= 16
+			self.trace.registry[2] = self.trace.registry[2] | 0b1
+		
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1110
+		
+		if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b10
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+		
+		self.trace.incrementIP(2)
+		
+	def CCF(self) -> None:
+		self.trace.setAction(["CCF","-","-","-"])
+		self.trace.printState()
+		
+		self.trace.registry[2] = self.trace.registry[2] & 0b1110
+		self.trace.incrementIP(1)
+		
+	def SCF(self) -> None:
+		self.trace.setAction(["SCF","-","-","-"])
+		self.trace.printState()
+		
+		self.trace.registry[2] = self.trace.registry[2] | 0b0001
+		self.trace.incrementIP(1)
+		
+	def DEL(self) -> None:
+		self.trace.setAction(["DEL","-","-","-"])
+		self.trace.printState()
+		
+		self.trace.registry[1]-=1
+		
+		if self.trace.registry[1]<0: self.trace.registry[1]+=16
+		
+		if self.trace.registry[1] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b0010
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+		
+		self.trace.incrementIP(1)
+		
+	def LDL(self) -> None:
+		self.trace.setAction(["LDL", self.trace.hexToStr(self.trace.memory[self.trace.registry[0]+1]),"-","-"])
+		self.trace.printState()
+		
+		self.trace.registry[1] = self.trace.memory[self.trace.memory[self.trace.registry[0]+1]]
+		if self.trace.registry[1] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b0010
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+		
+		self.trace.incrementIP(2)
+		
+	def FLA(self) -> None:
+		self.trace.setAction(["FLA","-","-","-"])
+		self.trace.printState()
+		
+		self.trace.registry[3] = 15 - self.trace.registry[3]
+		
+		if self.trace.registry[3] < 0: self.trace.registry[3]+=1
+		if self.trace.registry[3] == 0: self.trace.registry[2] = self.trace.registry[2] | 0b0010
+		else: self.trace.registry[2] = self.trace.registry[2] & 0b1101
+		
+		self.trace.incrementIP(1)
 
 trace = Trace()
 
@@ -311,9 +312,9 @@ def main(tinyTrace:Trace) -> None:
 	Args:
 		trace (Trace): Current Trace Instance
 	"""
-    
+	
 	ops = Operators(tinyTrace)
-    
+	
 	inputString = input('Enter input queue (Format: x, x, x, x...): ').replace(', ','')
 	for char in inputString: tinyTrace.inQueue.append(tinyTrace.strToHex(char))
 
@@ -365,8 +366,10 @@ def main(tinyTrace:Trace) -> None:
 
 		count += 1
 
+	tinyTrace.outQueue = [tinyTrace.hexToStr(char) for char in tinyTrace.outQueue]
+
 	print('-------  ----------------  ---------')
-	print(f'        {tinyTrace.reason}         ')
+	print(f'{tinyTrace.reason} Out - {"".join(tinyTrace.outQueue)}')
 	print('-------  ----------------  ---------')
 	input('Hit Enter to Finish...')
 
