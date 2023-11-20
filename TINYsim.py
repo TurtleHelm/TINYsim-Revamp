@@ -369,7 +369,7 @@ def main(tinyTrace:Trace) -> None:
 	tinyTrace.outQueue = [tinyTrace.hexToStr(char) for char in tinyTrace.outQueue]
 
 	print('-------  ----------------  ---------')
-	print(f'{tinyTrace.reason} Out - {"".join(tinyTrace.outQueue)}')
+	print(f'{tinyTrace.reason} | Out - {"".join(tinyTrace.outQueue)}')
 	print('-------  ----------------  ---------')
 	input('Hit Enter to Finish...')
 
